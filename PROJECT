@@ -1,0 +1,37 @@
+domain: klovercloud.com
+layout:
+- go.kubebuilder.io/v3
+plugins:
+  manifests.sdk.operatorframework.io/v2: {}
+  scorecard.sdk.operatorframework.io/v2: {}
+projectName: klovercloud-operator
+repo: bitbucket.org/klovercloud/klovercloud-operator
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: klovercloud.com
+  group: service
+  kind: KlovercloudFacade
+  path: bitbucket.org/klovercloud/klovercloud-operator/api/v1alpha1
+  version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: klovercloud.com
+  group: service
+  kind: KlovercloudManagement
+  path: bitbucket.org/klovercloud/klovercloud-operator/api/v1alpha1
+  version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: klovercloud.com
+  group: service
+  kind: KlovercloudPipeline
+  path: bitbucket.org/klovercloud/klovercloud-operator/api/v1alpha1
+  version: v1alpha1
+version: "3"

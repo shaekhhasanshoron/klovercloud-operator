@@ -1,0 +1,7 @@
+apiVersion: service.klovercloud.com/v1alpha1
+kind: KlovercloudFacade
+metadata:
+  name: klovercloudfacade-sample
+spec:
+  # Add fields here
+  foo: bar

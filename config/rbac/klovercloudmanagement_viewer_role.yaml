@@ -1,0 +1,20 @@
+# permissions for end users to view klovercloudmanagements.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: klovercloudmanagement-viewer-role
+rules:
+- apiGroups:
+  - service.klovercloud.com
+  resources:
+  - klovercloudmanagements
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - service.klovercloud.com
+  resources:
+  - klovercloudmanagements/status
+  verbs:
+  - get
