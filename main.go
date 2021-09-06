@@ -19,6 +19,7 @@ package main
 import (
 	"flag"
 	"os"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -78,27 +79,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controllers.KlovercloudFacadeReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "KlovercloudFacade")
-		os.Exit(1)
-	}
-	if err = (&controllers.KlovercloudManagementReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "KlovercloudManagement")
-		os.Exit(1)
-	}
-	if err = (&controllers.KlovercloudPipelineReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "KlovercloudPipeline")
-		os.Exit(1)
-	}
+	_ = initiateAllControllers(mgr)
+
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
@@ -115,4 +97,11 @@ func main() {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
+}
+
+func initiateAllControllers(mgr manager.Manager) error {
+	err := controllers.InitiateFacadeController(mgr)
+	err = controllers.InitiateManagementController(mgr)
+	err = controllers.InitiatePipelineController(mgr)
+	return err
 }

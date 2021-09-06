@@ -20,26 +20,23 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 // KlovercloudFacadeSpec defines the desired state of KlovercloudFacade
 type KlovercloudFacadeSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
 
-	// Foo is an example field of KlovercloudFacade. Edit klovercloudfacade_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	// replicas field for KloverCloud Facade Service is an optional field
+	//+optional
+	//+kubebuilder:default=1
+	//+kubebuilder:validation:Minimum=0
+	Replicas *int32 `json:"replicas"`
 }
 
 // KlovercloudFacadeStatus defines the observed state of KlovercloudFacade
 type KlovercloudFacadeStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
 }
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+//+kubebuilder:resource:shortName=facade; klovercloudfacade,singular=klovercloudfacade
 
 // KlovercloudFacade is the Schema for the klovercloudfacades API
 type KlovercloudFacade struct {

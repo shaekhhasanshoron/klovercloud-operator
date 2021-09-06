@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Namespace
 metadata:
   labels:
-    control-plane: klovercloud-operator
+    role: klovercloud
   name: klovercloud
 ---
 apiVersion: apps/v1
