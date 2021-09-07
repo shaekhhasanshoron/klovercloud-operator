@@ -56,8 +56,19 @@ func (r *KlovercloudFacadeReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	r.Log = ctrl.Log.WithName("reconcile")
 	r.Log.Info(fmt.Sprintf("'%s' reconcile", constant.KlovercloudFacadeDeployment), "controller", constant.KlovercloudFacadeController)
 
-	r.checkAndApplyDeployment()
+	cr := &servicev1alpha1.KlovercloudFacade{}
+	r.Err = r.Get(r.Context, types.NamespacedName{Name: constant.KlovercloudFacadeDeployment, Namespace: constant.KlovercloudNamespace}, cr)
+	if r.Err != nil && errors.IsNotFound(r.Err) == true {
+		r.checkAndRemoveAllResources()
+		return ctrl.Result{}, nil
+	}
+
+	r.checkAndApplyDeployment(cr)
 	r.Log.Info(fmt.Sprintf("'%s' deployment applied", constant.KlovercloudFacadeDeployment), "controller", constant.KlovercloudFacadeController)
+
+	r.checkAndApplyService(cr)
+	r.Log.Info(fmt.Sprintf("'%s' service applied", constant.KlovercloudFacadeDeployment), "controller", constant.KlovercloudFacadeController)
+
 	return ctrl.Result{}, nil
 }
 
@@ -117,16 +128,9 @@ func (r *KlovercloudFacadeReconciler) checkAndCreateKlovercloudNamespace() {
 	for {
 		r.Log.Info(fmt.Sprintf("checking for '%s' namespace", constant.KlovercloudNamespace), "controller", constant.KlovercloudFacadeController)
 		r.Err = r.Get(r.Context, types.NamespacedName{Name: constant.KlovercloudNamespace}, namespace)
-		if r.Err != nil {
-			if helper.Common().CheckSubstrings(r.Err.Error(), "cache", "not", "started") == true {
-				r.checkForControllerCacheStart()
-
-			} else if errors.IsNotFound(r.Err) == true {
-				r.Log.Info(fmt.Sprintf("creating new '%s' namespace", constant.KlovercloudNamespace), "controller", constant.KlovercloudFacadeController)
-				_ = r.Create(r.Context, helper.Common().KlovercloudNamespace())
-			} else {
-				break
-			}
+		if r.Err != nil && errors.IsNotFound(r.Err) == true {
+			r.Log.Info(fmt.Sprintf("creating new '%s' namespace", constant.KlovercloudNamespace), "controller", constant.KlovercloudFacadeController)
+			_ = r.Create(r.Context, helper.Common().KlovercloudNamespace())
 			time.Sleep(1 * time.Second)
 		} else {
 			break
@@ -140,16 +144,9 @@ func (r *KlovercloudFacadeReconciler) checkAndCreateCustomResource() {
 	for {
 		r.Log.Info(fmt.Sprintf("checking for '%s' cr", constant.KlovercloudFacadeDeployment), "controller", constant.KlovercloudFacadeController)
 		r.Err = r.Get(r.Context, types.NamespacedName{Name: constant.KlovercloudFacadeDeployment, Namespace: constant.KlovercloudNamespace}, cr)
-		if r.Err != nil {
-			if helper.Common().CheckSubstrings(r.Err.Error(), "cache", "not", "started") == true {
-				r.checkForControllerCacheStart()
-
-			} else if errors.IsNotFound(r.Err) == true {
-				r.Log.Info(fmt.Sprintf("creating new '%s' cr", constant.KlovercloudFacadeDeployment), "controller", constant.KlovercloudFacadeController)
-				_ = r.Create(r.Context, helper.KlovercloudFacade().CustomResourceV1Alpha1())
-			} else {
-				break
-			}
+		if r.Err != nil && errors.IsNotFound(r.Err) == true {
+			r.Log.Info(fmt.Sprintf("creating new '%s' cr", constant.KlovercloudFacadeDeployment), "controller", constant.KlovercloudFacadeController)
+			_ = r.Create(r.Context, helper.KlovercloudFacade().CustomResourceV1Alpha1())
 			time.Sleep(1 * time.Second)
 		} else {
 			break
@@ -158,23 +155,27 @@ func (r *KlovercloudFacadeReconciler) checkAndCreateCustomResource() {
 	r.Err = nil
 }
 
-func (r *KlovercloudFacadeReconciler) checkAndApplyDeployment() {
+func (r *KlovercloudFacadeReconciler) checkAndApplyDeployment(cr *servicev1alpha1.KlovercloudFacade) {
 	deployment := &appsv1.Deployment{}
 	for {
 		r.Log.Info(fmt.Sprintf("checking for '%s' deployment", constant.KlovercloudFacadeDeployment), "controller", constant.KlovercloudFacadeController)
 		r.Err = r.Get(r.Context, types.NamespacedName{Name: constant.KlovercloudFacadeDeployment, Namespace: constant.KlovercloudNamespace}, deployment)
 		if r.Err != nil {
-			if helper.Common().CheckSubstrings(r.Err.Error(), "cache", "not", "started") == true {
-				r.checkForControllerCacheStart()
-
-			} else if errors.IsNotFound(r.Err) == true {
+			if errors.IsNotFound(r.Err) == true {
 				r.Log.Info(fmt.Sprintf("creating new '%s' deployment", constant.KlovercloudFacadeDeployment), "controller", constant.KlovercloudFacadeController)
-				err := r.Create(r.Context, helper.KlovercloudFacade().Deployment())
+				deploy := helper.KlovercloudFacade().Deployment()
+				err := ctrl.SetControllerReference(cr, deploy, r.Scheme)
+				if err != nil {
+					r.Log.Error(err, fmt.Sprintf("unable to set controller reference to '%s' deployment. retrying..", constant.KlovercloudFacadeDeployment), "controller", constant.KlovercloudFacadeController)
+					continue
+				}
+
+				err = r.Create(r.Context, deploy)
 				if err != nil {
 					r.Log.Error(err, fmt.Sprintf("unable to create new '%s' deployment. retrying..", constant.KlovercloudFacadeDeployment), "controller", constant.KlovercloudFacadeController)
 				}
 
-				time.Sleep(1 * time.Second)
+				time.Sleep(2 * time.Second)
 				r.Err = r.Get(r.Context, types.NamespacedName{Name: constant.KlovercloudFacadeDeployment, Namespace: constant.KlovercloudNamespace}, deployment)
 				if r.Err == nil {
 					break
@@ -188,11 +189,137 @@ func (r *KlovercloudFacadeReconciler) checkAndApplyDeployment() {
 
 		} else {
 			r.Log.Info(fmt.Sprintf("updating '%s' deployment", constant.KlovercloudFacadeDeployment), "controller", constant.KlovercloudFacadeController)
-			r.Err = r.Update(r.Context, helper.KlovercloudFacade().Deployment())
+			deploy := helper.KlovercloudFacade().Deployment()
+			err := ctrl.SetControllerReference(cr, deploy, r.Scheme)
+			if err != nil {
+				r.Log.Error(err, fmt.Sprintf("unable to set controller reference to '%s' deployment. retrying..", constant.KlovercloudFacadeDeployment), "controller", constant.KlovercloudFacadeController)
+				continue
+			}
+
+			applyOpts := []client.PatchOption{client.ForceOwnership, client.FieldOwner("klovercloudfacade-controller")}
+
+			r.Err = r.Patch(r.Context, deploy, client.Apply, applyOpts...)
 			if r.Err != nil {
 				r.Log.Error(r.Err, fmt.Sprintf("unable to update '%s' deployment. retrying..", constant.KlovercloudFacadeDeployment), "controller", constant.KlovercloudFacadeController)
+				time.Sleep(1 * time.Second)
 			} else {
 				break
+			}
+
+			//patch := client.MergeFrom(deployment.DeepCopy())
+			//deployment.Spec.Replicas = helper.Common().Int32(1)
+			//
+			//for i := 0; i < len(deployment.Spec.Template.Spec.Containers); i++ {
+			//	if deployment.Spec.Template.Spec.Containers[i].Name == constant.KlovercloudFacadeDeployment {
+			//		deployment.Spec.Template.Spec.Containers[i].Image = constant.KlovercloudFacadeImage
+			//		deployment.Spec.Template.Spec.Containers[i].ImagePullPolicy = corev1.PullAlways
+			//	}
+			//}
+			//
+			//r.Err = r.Patch(r.Context, deployment, patch)
+			//if r.Err != nil {
+			//	r.Log.Error(r.Err, fmt.Sprintf("unable to update '%s' deployment. retrying..", constant.KlovercloudFacadeDeployment), "controller", constant.KlovercloudFacadeController)
+			//} else {
+			//	break
+			//}
+		}
+	}
+	r.Err = nil
+}
+
+func (r *KlovercloudFacadeReconciler) checkAndApplyService(cr *servicev1alpha1.KlovercloudFacade) {
+	svc := &corev1.Service{}
+	for {
+		r.Log.Info(fmt.Sprintf("checking for '%s' service", constant.KlovercloudFacadeDeployment), "controller", constant.KlovercloudFacadeController)
+		r.Err = r.Get(r.Context, types.NamespacedName{Name: constant.KlovercloudFacadeDeployment, Namespace: constant.KlovercloudNamespace}, svc)
+		if r.Err != nil {
+			if errors.IsNotFound(r.Err) == true {
+				r.Log.Info(fmt.Sprintf("creating new '%s' service", constant.KlovercloudFacadeDeployment), "controller", constant.KlovercloudFacadeController)
+				service := helper.KlovercloudFacade().Service()
+				err := ctrl.SetControllerReference(cr, service, r.Scheme)
+				if err != nil {
+					r.Log.Error(err, fmt.Sprintf("unable to set controller reference to '%s' service. retrying..", constant.KlovercloudFacadeDeployment), "controller", constant.KlovercloudFacadeController)
+					continue
+				}
+
+				err = r.Create(r.Context, service)
+				if err != nil {
+					r.Log.Error(err, fmt.Sprintf("unable to create new '%s' service. retrying..", constant.KlovercloudFacadeDeployment), "controller", constant.KlovercloudFacadeController)
+				}
+
+				time.Sleep(2 * time.Second)
+				r.Err = r.Get(r.Context, types.NamespacedName{Name: constant.KlovercloudFacadeDeployment, Namespace: constant.KlovercloudNamespace}, svc)
+				if r.Err == nil {
+					break
+				}
+				time.Sleep(1 * time.Second)
+
+			} else {
+				r.Log.Error(r.Err, fmt.Sprintf("something went wrong while fetching '%s' service. retrying..", constant.KlovercloudFacadeDeployment), "controller", constant.KlovercloudFacadeController)
+				time.Sleep(3 * time.Second)
+			}
+
+		} else {
+			r.Log.Info(fmt.Sprintf("updating '%s' service", constant.KlovercloudFacadeDeployment), "controller", constant.KlovercloudFacadeController)
+			service := helper.KlovercloudFacade().Service()
+			err := ctrl.SetControllerReference(cr, service, r.Scheme)
+			if err != nil {
+				r.Log.Error(err, fmt.Sprintf("unable to set controller reference to '%s' service. retrying..", constant.KlovercloudFacadeDeployment), "controller", constant.KlovercloudFacadeController)
+				continue
+			}
+
+			applyOpts := []client.PatchOption{client.ForceOwnership, client.FieldOwner("klovercloudfacade-controller")}
+
+			r.Err = r.Patch(r.Context, service, client.Apply, applyOpts...)
+			if r.Err != nil {
+				r.Log.Error(r.Err, fmt.Sprintf("unable to update '%s' service. retrying..", constant.KlovercloudFacadeDeployment), "controller", constant.KlovercloudFacadeController)
+				time.Sleep(1 * time.Second)
+			} else {
+				break
+			}
+		}
+	}
+	r.Err = nil
+}
+
+func (r *KlovercloudFacadeReconciler) checkAndRemoveAllResources() {
+	r.Log.Info(fmt.Sprintf("deleting all resource '%s' cr", constant.KlovercloudFacadeDeployment), "controller", constant.KlovercloudFacadeController)
+	deployment := &appsv1.Deployment{}
+	for {
+		r.Err = r.Get(r.Context, types.NamespacedName{Name: constant.KlovercloudFacadeDeployment, Namespace: constant.KlovercloudNamespace}, deployment)
+		if r.Err != nil {
+			if errors.IsNotFound(r.Err) == true {
+				break
+			} else {
+				r.Log.Error(r.Err, fmt.Sprintf("something went wrong while fetching '%s' deployment. retrying..", constant.KlovercloudFacadeDeployment), "controller", constant.KlovercloudFacadeController)
+				time.Sleep(3 * time.Second)
+			}
+		} else {
+			r.Log.Info(fmt.Sprintf("deleting '%s' deployment", constant.KlovercloudFacadeDeployment), "controller", constant.KlovercloudFacadeController)
+			err := r.Delete(r.Context, deployment, client.GracePeriodSeconds(5))
+			if err != nil {
+				r.Log.Error(r.Err, fmt.Sprintf("unable to delete '%s' deployment. retrying..", constant.KlovercloudFacadeDeployment), "controller", constant.KlovercloudFacadeController)
+				time.Sleep(1 * time.Second)
+			}
+		}
+	}
+
+	svc := &corev1.Service{}
+	for {
+		r.Err = r.Get(r.Context, types.NamespacedName{Name: constant.KlovercloudFacadeDeployment, Namespace: constant.KlovercloudNamespace}, svc)
+		if r.Err != nil {
+			if errors.IsNotFound(r.Err) == true {
+				break
+			} else {
+				r.Log.Error(r.Err, fmt.Sprintf("something went wrong while fetching '%s' service. retrying..", constant.KlovercloudFacadeDeployment), "controller", constant.KlovercloudFacadeController)
+				time.Sleep(3 * time.Second)
+			}
+		} else {
+			r.Log.Info(fmt.Sprintf("deleting '%s' service", constant.KlovercloudFacadeDeployment), "controller", constant.KlovercloudFacadeController)
+			err := r.Delete(r.Context, svc, client.GracePeriodSeconds(5))
+			if err != nil {
+				r.Log.Error(r.Err, fmt.Sprintf("unable to delete '%s' service. retrying..", constant.KlovercloudFacadeDeployment), "controller", constant.KlovercloudFacadeController)
+				time.Sleep(1 * time.Second)
 			}
 		}
 	}
