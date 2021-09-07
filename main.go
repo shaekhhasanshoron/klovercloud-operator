@@ -20,6 +20,7 @@ import (
 	"flag"
 	"os"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"time"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -79,7 +80,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	_ = initiateAllControllers(mgr)
+	initiateAllControllers(mgr)
 
 	//+kubebuilder:scaffold:builder
 
@@ -99,9 +100,28 @@ func main() {
 	}
 }
 
-func initiateAllControllers(mgr manager.Manager) error {
-	err := controllers.InitiateFacadeController(mgr)
-	err = controllers.InitiateManagementController(mgr)
-	err = controllers.InitiatePipelineController(mgr)
-	return err
+func initiateAllControllers(mgr manager.Manager) {
+	for {
+		err := controllers.InitiateFacadeController(mgr)
+		if err == nil {
+			break
+		}
+		time.Sleep(1 * time.Second)
+	}
+
+	for {
+		err := controllers.InitiateManagementController(mgr)
+		if err == nil {
+			break
+		}
+		time.Sleep(1 * time.Second)
+	}
+
+	for {
+		err := controllers.InitiatePipelineController(mgr)
+		if err == nil {
+			break
+		}
+		time.Sleep(1 * time.Second)
+	}
 }
