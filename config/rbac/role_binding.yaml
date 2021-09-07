@@ -5,7 +5,7 @@ metadata:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: klovercloud-operator-role
+  name: manager-role
 subjects:
 - kind: ServiceAccount
   name: klovercloud-operator-sa
