@@ -1,0 +1,63 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.6.1
+  creationTimestamp: null
+  name: klovercloudfacades.service.klovercloud.com
+spec:
+  group: service.klovercloud.com
+  names:
+    kind: KlovercloudFacade
+    listKind: KlovercloudFacadeList
+    plural: klovercloudfacades
+    shortNames:
+    - facade
+    - klovercloudfacade
+    singular: klovercloudfacade
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: KlovercloudFacade is the Schema for the klovercloudfacades API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: KlovercloudFacadeSpec defines the desired state of KlovercloudFacade
+            properties:
+              replicas:
+                default: 1
+                description: replicas field for KloverCloud Facade Service is an optional
+                  field
+                format: int32
+                minimum: 0
+                type: integer
+            type: object
+          status:
+            description: KlovercloudFacadeStatus defines the observed state of KlovercloudFacade
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
